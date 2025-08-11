@@ -1,0 +1,41 @@
+env:
+  RG_NAME: ${{ secrets.RG_NAME }}
+  LOCATION: ${{ secrets.LOCATION }}
+
+permissions:
+  id-token: write
+  contents: read
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the "main" branch
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy-environment-infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
+
+      - name: Deploy infra not using main.parameters.json
+        run: |
+          az group create --name "${{ env.RG_NAME }}" --location "${{ env.LOCATION }}"
+          echo "Azure resource group created"
+           az deployment sub create \
+             --location "${{ env.LOCATION }}" \
+             --template-file main.bicep \
+             --parameters rgName="${{ env.RG_NAME }}" location="${{ env.LOCATION }}"
